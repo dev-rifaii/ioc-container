@@ -1,17 +1,19 @@
 package dev.rits.components;
 
 import dev.rits.CustomerData;
+import dev.rits.ioc.Component;
 
+@Component
 public class CustomerService {
 
-    private EmailSender emailSender = new EmailSender();
-    private ImageRegistry imageRegistry = new ImageRegistry();
-    private DataAccessObject dataAccessObject = new DataAccessObject();
+    private final ImageRegistry imageRegistry;
 
-    public void registerCustomer(CustomerData customerData) {
-        imageRegistry.storeImage(customerData.image);
-        emailSender.sendEmail(customerData.email, "Foo bar");
-        dataAccessObject.store(customerData);
+    public CustomerService(ImageRegistry imageRegistry) {
+        this.imageRegistry = imageRegistry;
+    }
+
+    public void registerCustomer() {
+        System.out.println("Registering customer...");
     }
 
 }
