@@ -1,6 +1,5 @@
 package dev.rits.components;
 
-import dev.rits.CustomerData;
 import dev.rits.ioc.Component;
 
 @Component

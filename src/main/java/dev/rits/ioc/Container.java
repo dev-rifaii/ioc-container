@@ -21,15 +21,18 @@ public class Container {
 
     private final Map<Class<?>, Object> REGISTRY = new ConcurrentHashMap<>();
 
-    public void printAllRegisteredComponents() {
-        REGISTRY.forEach((k, v) -> {
-            System.out.println("Class: " + k.getName());
-            System.out.println("Instance: " + v);
-            System.out.println();
-        });
+    public <T> T getComponent(Class<T> clazz) {
+        if (clazz == null) {
+            throw new IllegalArgumentException("Class cannot be null");
+        }
+        if (!REGISTRY.containsKey(clazz)) {
+            throw new RuntimeException("Class " + clazz.getName() + " is not registered");
+        }
+
+        return (T) REGISTRY.get(clazz);
     }
 
-    public void registerComponents(Set<Class<?>> componentClasses) throws InvocationTargetException, InstantiationException, IllegalAccessException {
+    void registerComponents(Set<Class<?>> componentClasses) throws InvocationTargetException, InstantiationException, IllegalAccessException {
         for (Class<?> componentClass : componentClasses) {
             if (REGISTRY.containsKey(componentClass))
                 continue;
@@ -52,17 +55,22 @@ public class Container {
             List<Object> paramsInstances = new ArrayList<>();
             for (Parameter constructorParam : constructorParams) {
                 Class<?> type = constructorParam.getType();
-                if (REGISTRY.containsKey(type))
+                if (REGISTRY.containsKey(type)) {
+                    paramsInstances.add(REGISTRY.get(type));
                     continue;
+                }
                 else {
+                    if (!type.isAnnotationPresent(Component.class)) {
+                        System.out.println("ERROR");
+                        System.exit(1);
+                    }
                     registerComponents(Set.of(type));
                 }
 
                 paramsInstances.add(REGISTRY.get(type));
             }
 
-            constructorWithMostParams.newInstance(paramsInstances.toArray());
-
+            REGISTRY.put(componentClass, constructorWithMostParams.newInstance(paramsInstances.toArray()));
         }
     }
 
@@ -74,17 +82,7 @@ public class Container {
             .collect(Collectors.toUnmodifiableSet());
 
         return componentClasses;
-//        componentClasses.stream().forEach(componentClass -> {
-//            Constructor<?> constructorWithMostParams = Arrays.stream(componentClass.getConstructors())
-//                .max(Comparator.comparing(Constructor::getParameterCount))
-//                .orElseThrow(() -> new RuntimeException("No constructor found"));
-//
-//            Arrays.stream(constructorWithMostParams.getParameters())
-//                .forEach(param -> System.out.println(param.getType().getName()));
-//
-//        });
     }
-
 
     public static Set<Class<?>> search(String packageName, Set<File> files) throws ClassNotFoundException {
         Set<Class<?>> classes = new HashSet<>();
