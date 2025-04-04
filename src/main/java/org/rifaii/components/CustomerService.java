@@ -1,6 +1,6 @@
-package dev.rits.components;
+package org.rifaii.components;
 
-import dev.rits.ioc.Component;
+import org.rifaii.ioc.Component;
 
 @Component
 public class CustomerService {
