@@ -9,10 +9,10 @@ public class Runner {
 
     private static final Logger log = LoggerFactory.getLogger(Runner.class);
 
-    public static Container run(Class<?> clazz) {
+    public static void initializeContainer(Class<?> clazz) {
         try {
             Set<Class<?>> components = ComponentScanner.findComponents(clazz.getPackage().getName());
-            return Container.withComponents(components);
+            Container.withComponents(components);
         } catch (Exception e) {
             log.error("Error during container initialization: {}", e.getMessage());
             throw new RuntimeException(e);
