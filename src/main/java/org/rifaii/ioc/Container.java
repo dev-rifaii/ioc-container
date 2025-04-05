@@ -20,24 +20,23 @@ public class Container {
 
     private static final Logger log = LoggerFactory.getLogger(Container.class);
 
-    private static Set<Class<?>> COMPONENTS;
-    private static final Map<Class<?>, Object> REGISTRY = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Class<?>> INTERFACES_IMPL = new ConcurrentHashMap<>();
-    private static final Dag<Class<?>> dag = new Dag<>();
+    private Set<Class<?>> COMPONENTS;
+    private final Map<Class<?>, Object> REGISTRY = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Class<?>> INTERFACES_IMPL = new ConcurrentHashMap<>();
+    private final Dag<Class<?>> dag = new Dag<>();
 
-    private Container() {}
-
-    public static void withComponents(Set<Class<?>> components) {
-        if (COMPONENTS != null) {
-            throw new RuntimeException("Container already initialized");
-        }
-
+    private Container(Set<Class<?>> components) {
         COMPONENTS = components;
         registerComponents();
     }
 
+    public static Container withComponents(Set<Class<?>> components) {
+        Container container = new Container(components);
+        return container;
+    }
+
     @SuppressWarnings("unchecked")
-    public static <T> T getComponent(Class<T> clazz) {
+    public <T> T getComponent(Class<T> clazz) {
         if (clazz == null) {
             throw new IllegalArgumentException("Class cannot be null");
         }
@@ -51,7 +50,7 @@ public class Container {
     /**
      * Interfaces not supported yet
      */
-    static void registerComponents() {
+    void registerComponents() {
         analyzeInterfacesImplementations();
 
         Function<Class<?>, Constructor<?>> constructorFinder = component -> Arrays.stream(component.getConstructors())
@@ -68,14 +67,14 @@ public class Container {
         dag.traverse((clazz, params) -> {
             try {
                 REGISTRY.put(clazz, constructorFinder.apply(clazz).newInstance(params.stream().map(REGISTRY::get).toArray()));
-                log.debug("Registered component: " + clazz.getName());
+                log.debug("Registered component: {}", clazz.getName());
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
-    private static void analyzeInterfacesImplementations() {
+    private void analyzeInterfacesImplementations() {
         COMPONENTS.forEach(component -> {
             for (Class<?> anInterface : component.getInterfaces()) {
                 if (INTERFACES_IMPL.containsKey(anInterface)) {
