@@ -9,7 +9,6 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ComponentScanner {
 
@@ -20,22 +19,17 @@ public class ComponentScanner {
      * @param rootPackageName The root package name to search in.
      * @return Set of classes annotated with @Component
      */
-    public static Set<Class<?>> findComponents(String rootPackageName) throws IOException, ClassNotFoundException {
+    public static Set<Class<?>> getComponents(String rootPackageName) throws IOException, ClassNotFoundException {
         Set<File> rootPackageFiles = findRootPackageFiles(rootPackageName);
-        Set<Class<?>> allClasses = findAllClasses(rootPackageName, rootPackageFiles);
-        log.debug("Found {} classes in package {}", allClasses.size(), rootPackageName);
-
-        return allClasses.stream()
-            .filter(clazz -> clazz.isAnnotationPresent(Component.class))
-            .collect(Collectors.toUnmodifiableSet());
+        return getComponents(rootPackageName, rootPackageFiles);
     }
 
-    private static Set<Class<?>> findAllClasses(String packageName, Set<File> files) throws ClassNotFoundException {
+    private static Set<Class<?>> getComponents(String packageName, Set<File> files) throws ClassNotFoundException {
         Set<Class<?>> classes = new HashSet<>();
         for (File file : files) {
             if (file.isDirectory()) {
                 log.trace("Looking for classes in directory: {}", file.getAbsolutePath());
-                Set<Class<?>> subDirClasses = findAllClasses(
+                Set<Class<?>> subDirClasses = getComponents(
                     packageName.replaceAll("\\.", "/") + "/" + file.getName(),
                     Set.of(file.listFiles())
                 );
@@ -49,7 +43,9 @@ public class ComponentScanner {
                 String className = packageName.replaceAll("/", ".") + "." + fileName.substring(0, fileName.length() - 6);
                 log.trace("Found class: {}", className);
                 Class<?> clazz = Class.forName(className);
-                classes.add(clazz);
+                if (clazz.isAnnotationPresent(Component.class)) {
+                    classes.add(clazz);
+                }
             }
         }
 
