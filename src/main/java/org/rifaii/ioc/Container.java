@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 public class Container {
 
@@ -22,23 +23,20 @@ public class Container {
     private static Set<Class<?>> COMPONENTS;
     private static final Map<Class<?>, Object> REGISTRY = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Class<?>> INTERFACES_IMPL = new ConcurrentHashMap<>();
-    private static Container INSTANCE;
     private static final Dag<Class<?>> dag = new Dag<>();
 
-    private Container(Set<Class<?>> components) {
-        COMPONENTS = components;
-    }
+    private Container() {}
 
-    public static void withComponents(Set<Class<?>> components) throws InvocationTargetException,
-                                                                       InstantiationException,
-                                                                       IllegalAccessException {
-        if (INSTANCE != null) {
-            log.error("Container already initialized");
+    public static void withComponents(Set<Class<?>> components) {
+        if (COMPONENTS != null) {
+            throw new RuntimeException("Container already initialized");
         }
-        INSTANCE = new Container(components);
+
+        COMPONENTS = components;
         registerComponents();
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T getComponent(Class<T> clazz) {
         if (clazz == null) {
             throw new IllegalArgumentException("Class cannot be null");
@@ -50,63 +48,31 @@ public class Container {
         return (T) REGISTRY.get(clazz);
     }
 
+    /**
+     * Interfaces not supported yet
+     */
     static void registerComponents() {
         analyzeInterfacesImplementations();
 
+        Function<Class<?>, Constructor<?>> constructorFinder = component -> Arrays.stream(component.getConstructors())
+            .max(Comparator.comparing(Constructor::getParameterCount))
+            .orElseThrow(() -> new RuntimeException("No constructor found"));
+
         for (Class<?> component : COMPONENTS) {
-            Constructor<?> constructorWithMostParams = Arrays.stream(component.getConstructors())
-                .max(Comparator.comparing(Constructor::getParameterCount))
-                .orElseThrow(() -> new RuntimeException("No constructor found"));
+            Constructor<?> constructorWithMostParams = constructorFinder.apply(component);
 
             for (Parameter param : constructorWithMostParams.getParameters()) {
                 dag.addEdge(component, param.getType());
             }
         }
-
-        dag.traverse();
-    }
-
-    private static void registerComponent(Class<?> component) throws InvocationTargetException, InstantiationException, IllegalAccessException {
-        Constructor<?> constructorWithMostParams = Arrays.stream(component.getConstructors())
-            .max(Comparator.comparing(Constructor::getParameterCount))
-            .orElseThrow(() -> new RuntimeException("No constructor found"));
-
-        if (constructorWithMostParams.getParameterCount() == 0) {
+        dag.traverse((clazz, params) -> {
             try {
-                REGISTRY.put(component, constructorWithMostParams.newInstance());
-            } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                REGISTRY.put(clazz, constructorFinder.apply(clazz).newInstance(params.stream().map(REGISTRY::get).toArray()));
+                log.debug("Registered component: " + clazz.getName());
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
-            return;
-        }
-
-        Parameter[] constructorParams = constructorWithMostParams.getParameters();
-
-        List<Object> paramsInstances = new ArrayList<>();
-        for (Parameter constructorParam : constructorParams) {
-            Class<?> type = constructorParam.getType();
-            if (REGISTRY.containsKey(type)) {
-                paramsInstances.add(REGISTRY.get(type));
-                continue;
-            }
-            else {
-                boolean isInterface = type.isInterface();
-                if (isInterface && INTERFACES_IMPL.get(type) == null) {
-                    throw new RuntimeException("0 implementations found for " + type.getName());
-                } else if (!isInterface && !type.isAnnotationPresent(Component.class)){
-                    throw new RuntimeException("No component annotation found for " + type.getName());
-                }
-
-                registerComponent(isInterface ? INTERFACES_IMPL.get(type) : type);
-            }
-
-            paramsInstances.add(REGISTRY.get(type));
-        }
-
-        REGISTRY.put(
-            component.getInterfaces().length > 0 ? component.getInterfaces()[0] : component,
-            constructorWithMostParams.newInstance(paramsInstances.toArray())
-        );
+        });
     }
 
     private static void analyzeInterfacesImplementations() {

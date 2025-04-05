@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 public class Dag<T> {
     private final Map<T, List<T>> MAP = new HashMap<>();
@@ -16,12 +17,12 @@ public class Dag<T> {
         MAP.computeIfAbsent(from, k -> new ArrayList<>()).add(to);
     }
 
-    public void traverse() {
-        MAP.keySet().forEach(this::traverse);
+    public void traverse(BiConsumer<T, List<T>> consumer) {
         visited.clear();
+        MAP.keySet().forEach(key -> traverse(key, consumer));
     }
 
-    public void traverse(T key) {
+    public void traverse(T key, BiConsumer<T, List<T>> consumer) {
         if (visited.contains(key)) {
             return;
         }
@@ -36,19 +37,10 @@ public class Dag<T> {
             if (visited.contains(dep))
                 continue;
 
-            traverse(dep);
+            traverse(dep, consumer);
         }
 
-        System.out.println(key);
+        consumer.accept(key, dependencies);
         visited.add(key);
-    }
-
-    public void printGraph() {
-        System.out.println("Directed Acyclic Graph:");
-        for (Map.Entry<T, List<T>> entry : MAP.entrySet()) {
-            T from = entry.getKey();
-            List<T> toList = entry.getValue();
-            System.out.printf("  %s -> %s%n", from, toList.isEmpty() ? "∅" : String.join(", ", toList.stream().map(String::valueOf).toList()));
-        }
     }
 }
