@@ -6,6 +6,6 @@ import org.rifaii.ioc.Runner;
 public class Main {
 
     public static void main(String[] args) {
-        Container container = Runner.initializeContainer(Main.class);
+        Runner.initializeContainer(Main.class);
     }
 }

@@ -2,9 +2,6 @@ package org.rifaii.components;
 
 import org.rifaii.ioc.Component;
 
-import java.util.PriorityQueue;
-import java.util.Queue;
-
 @Component
 public class CustomerService {
 
