@@ -1,5 +1,6 @@
 package org.rifaii.ioc;
 
+import org.rifaii.graph.Dag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,20 +23,20 @@ public class Container {
     private static final Map<Class<?>, Object> REGISTRY = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Class<?>> INTERFACES_IMPL = new ConcurrentHashMap<>();
     private static Container INSTANCE;
+    private static final Dag<Class<?>> dag = new Dag<>();
 
     private Container(Set<Class<?>> components) {
         COMPONENTS = components;
     }
 
-    public static Container withComponents(Set<Class<?>> components) throws InvocationTargetException,
-                                                                            InstantiationException,
-                                                                            IllegalAccessException {
+    public static void withComponents(Set<Class<?>> components) throws InvocationTargetException,
+                                                                       InstantiationException,
+                                                                       IllegalAccessException {
         if (INSTANCE != null) {
             log.error("Container already initialized");
         }
         INSTANCE = new Container(components);
         registerComponents();
-        return INSTANCE;
     }
 
     public static <T> T getComponent(Class<T> clazz) {
@@ -49,13 +50,20 @@ public class Container {
         return (T) REGISTRY.get(clazz);
     }
 
-    static void registerComponents() throws InvocationTargetException, InstantiationException, IllegalAccessException {
+    static void registerComponents() {
         analyzeInterfacesImplementations();
 
-        for (Class<?> componentClass : COMPONENTS) {
-            registerComponent(componentClass);
-            log.info("Registered component {}", componentClass.getName());
+        for (Class<?> component : COMPONENTS) {
+            Constructor<?> constructorWithMostParams = Arrays.stream(component.getConstructors())
+                .max(Comparator.comparing(Constructor::getParameterCount))
+                .orElseThrow(() -> new RuntimeException("No constructor found"));
+
+            for (Parameter param : constructorWithMostParams.getParameters()) {
+                dag.addEdge(component, param.getType());
+            }
         }
+
+        dag.traverse();
     }
 
     private static void registerComponent(Class<?> component) throws InvocationTargetException, InstantiationException, IllegalAccessException {
