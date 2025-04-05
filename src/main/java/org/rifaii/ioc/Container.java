@@ -51,7 +51,7 @@ public class Container {
      * Interfaces not supported yet
      */
     void registerComponents() {
-        analyzeInterfacesImplementations();
+//        analyzeInterfacesImplementations();
 
         Function<Class<?>, Constructor<?>> constructorFinder = component -> Arrays.stream(component.getConstructors())
             .max(Comparator.comparing(Constructor::getParameterCount))

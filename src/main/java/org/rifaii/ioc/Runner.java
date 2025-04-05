@@ -11,7 +11,7 @@ public class Runner {
 
     public static Container initializeContainer(Class<?> clazz) {
         try {
-            Set<Class<?>> components = ComponentScanner.findComponents(clazz.getPackage().getName());
+            Set<Class<?>> components = ComponentScanner.getComponents(clazz.getPackage().getName());
             return Container.withComponents(components);
         } catch (Exception e) {
             log.error("Error during container initialization: {}", e.getMessage());
