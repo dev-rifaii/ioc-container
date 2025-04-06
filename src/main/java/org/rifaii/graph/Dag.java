@@ -14,6 +14,14 @@ public class Dag<T> {
     private final Set<T> visited = new HashSet<>();
 
     public void addEdge(T from, T to) {
+        List<T> toDependencies = MAP.get(to);
+
+        if (toDependencies != null)
+            for (T dependency : toDependencies) {
+                if (dependency.equals(from))
+                    throw new IllegalStateException("Cyclic dependency detected: " + from + " -> " + to);
+            }
+
         MAP.computeIfAbsent(from, k -> new ArrayList<>()).add(to);
     }
 
@@ -22,7 +30,7 @@ public class Dag<T> {
         MAP.keySet().forEach(key -> traverse(key, consumer));
     }
 
-    public void traverse(T key, BiConsumer<T, List<T>> consumer) {
+    private void traverse(T key, BiConsumer<T, List<T>> consumer) {
         if (visited.contains(key)) {
             return;
         }
